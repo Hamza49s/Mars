@@ -108,14 +108,14 @@ function _updatePlotData(uint256 plotId, string memory newData) private {
         CitizenshipPrice = newPrice;
     }
     // Function to set the token contract address
-    function setTokenAddress(address newTokenAddress) external onlyAdmin {
+    function setTokenAddress(address newTokenAddress) external  {
         require(newTokenAddress != address(0), "Invalid token address");
         tokenAddress = newTokenAddress;
         token = ERC20Token(newTokenAddress); // Update the ERC20 token contract
         emit TokenAddressUpdated(newTokenAddress);
     }
     // Function to check if a given token ID has a citizenship certificate
-    function hasCertificate(uint256 tokenId) external view returns (bool) {
+    function hasCertificate(uint256 tokenId) private view returns (bool) {
         return _certificateExists[tokenId];
     }
     // Function to set the base URI, accessible only by the admin
