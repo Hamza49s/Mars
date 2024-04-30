@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "./MARS.sol";
-// Define an interface for the ERC20 token
+
 interface ERC20Token {
     function allowance(address owner, address spender) external view returns (uint256);
     function approve(address spender, uint256 amount) external returns (bool);
@@ -25,6 +25,8 @@ contract CitizenshipCertificate is ERC721 {
     mapping(uint256 => bool) private _tokensClaimed;
     mapping(address => bool) private _addressHasCertificate;
     mapping(address => uint256) private _userCitizenshipIds;
+     mapping(uint256 => uint256) private _certificateToTokenId;
+     mapping(uint256 => uint256) private _certificateToPlotId; 
     // Events
     event CitizenshipBought(address indexed buyer, uint256 indexed plotId, uint256 indexed citizenshipId);
     event CitizenshipSold(address indexed seller, address indexed buyer, uint256 indexed citizenshipId, uint256 price);
@@ -46,37 +48,73 @@ contract CitizenshipCertificate is ERC721 {
     }
 
 
-function buyCitizenship(uint plotId) external {
-    // Check if the caller owns the plot on Mars and if the plot already has a certificate
-    require(marsContract.isPlotOwner(msg.sender, plotId), "You do not own this plot on Mars");
-    require(marsContract.getUserBalance(msg.sender, plotId) > 0, "You do not own this plot on Mars");
-    require(_plotCertificates[plotId] == 0, "This plot already has a certificate");
+// function buyCitizenship(uint plotId) external {
+//     // Check if the caller owns the plot on Mars and if the plot already has a certificate
+//     require(marsContract.isPlotOwner(msg.sender, plotId), "You do not own this plot on Mars");
+//     require(marsContract.getUserBalance(msg.sender, plotId) > 0, "You do not own this plot on Mars");
+//     require(_plotCertificates[plotId] == 0, "This plot already has a certificate");
 
-    // Ensure that the caller has not already purchased a certificate
-    require(!_addressHasCertificate[msg.sender], "You have already purchased a certificate");
+//     // Ensure that the caller has not already purchased a certificate
+//     require(!_addressHasCertificate[msg.sender], "You have already purchased a certificate");
 
-    // Ensure that the CitizenshipPrice is greater than zero
-    require(CitizenshipPrice > 0, "Citizenship price must be greater than zero");
+//     // Ensure that the CitizenshipPrice is greater than zero
+//     require(CitizenshipPrice > 0, "Citizenship price must be greater than zero");
 
-    // Generate unique citizenship ID with plot ID included
-    uint256 certificateId = _generateCitizenshipId(plotId);
+//     // Generate unique citizenship ID with plot ID included
+//     uint256 certificateId = _generateCitizenshipId(plotId);
 
-    // Mint citizenship certificate
-    _mint(msg.sender, certificateId);
-    _certificateExists[certificateId] = true; // Update certificate existence mapping
-    _plotCertificates[plotId] = certificateId;
-    _addressHasCertificate[msg.sender] = true; // Mark the address as having purchased a certificate
+//     // Mint citizenship certificate
+//     _mint(msg.sender, certificateId);
+//     _certificateExists[certificateId] = true; // Update certificate existence mapping
+//     _plotCertificates[plotId] = certificateId;
+//     _addressHasCertificate[msg.sender] = true; // Mark the address as having purchased a certificate
 
-    // Save citizenship ID for the caller's address
-    _userCitizenshipIds[msg.sender] = certificateId;
+//     // Save citizenship ID for the caller's address
+//     _userCitizenshipIds[msg.sender] = certificateId;
 
-    // Update plot data within CitizenshipCertificate contract
-    _updatePlotData(plotId, "Citizenship Granted");
+//     // Update plot data within CitizenshipCertificate contract
+//     _updatePlotData(plotId, "Citizenship Granted");
 
-    // Emit events
-    emit CitizenshipBought(msg.sender, plotId, certificateId);
-    emit PlotDataUpdated(plotId, "Citizenship Granted");
-}
+//     // Emit events
+//     emit CitizenshipBought(msg.sender, plotId, certificateId);
+//     emit PlotDataUpdated(plotId, "Citizenship Granted");
+// }
+function buyCitizenship(uint256 plotId) external {
+        // Check if the caller owns the plot on Mars and if the plot already has a certificate
+        require(marsContract.isPlotOwner(msg.sender, plotId), "You do not own this plot on Mars");
+        require(marsContract.getUserBalance(msg.sender, plotId) > 0, "You do not own this plot on Mars");
+        require(_plotCertificates[plotId] == 0, "This plot already has a certificate");
+
+        // Ensure that the caller has not already purchased a certificate
+        require(!_addressHasCertificate[msg.sender], "You have already purchased a certificate");
+
+        // Ensure that the CitizenshipPrice is greater than zero
+        require(CitizenshipPrice > 0, "Citizenship price must be greater than zero");
+
+        // Generate unique citizenship ID with plot ID included
+        uint256 certificateId = _generateCitizenshipId(plotId);
+
+        // Mint citizenship certificate
+        _mint(msg.sender, certificateId);
+        _certificateExists[certificateId] = true; // Update certificate existence mapping
+        _plotCertificates[plotId] = certificateId;
+        _addressHasCertificate[msg.sender] = true; // Mark the address as having purchased a certificate
+
+        // Store the token ID associated with the certificate
+        _certificateToTokenId[certificateId] = plotId;
+
+        // Save citizenship ID for the caller's address
+        _userCitizenshipIds[msg.sender] = certificateId;
+         _certificateToPlotId[certificateId] = plotId;
+
+        // Update plot data within CitizenshipCertificate contract
+        _updatePlotData(plotId, "Citizenship Granted");
+
+        // Emit events
+        emit CitizenshipBought(msg.sender, plotId, certificateId);
+        emit PlotDataUpdated(plotId, "Citizenship Granted");
+    }
+
 
 function _generateCitizenshipId(uint256 plotId) private view returns (uint256) {
     require(plotId <= 999, "Plot ID must be a 3-digit number");
@@ -176,13 +214,41 @@ function claimTokens(uint256 certificateId) external {
 // function getCitizenshipIdByAddress(address userAddress) external view returns (uint256) {
 //         return _userCitizenshipIds[userAddress];
 //     }
-function getCitizenshipInfoByAddress(address userAddress) external view returns (uint256, uint256[] memory, uint256[] memory) {
-    // Fetch token IDs and corresponding supplies minted by the specified address on Mars
-    (uint256[] memory tokenIds, uint256[] memory tokenSupplies) = marsContract.TotalFraction(userAddress);
+// function getCitizenshipInfoByAddress(address userAddress) external view returns (uint256, uint256[] memory, uint256[] memory) {
+//     // Fetch token IDs and corresponding supplies minted by the specified address on Mars
+//     (uint256[] memory tokenIds, uint256[] memory tokenSupplies) = marsContract.TotalFraction(userAddress);
 
-    // Return citizenship token ID and Mars token IDs and supplies
-    return (_userCitizenshipIds[userAddress], tokenIds, tokenSupplies);
+//     // Return citizenship token ID and Mars token IDs and supplies
+//     return (_userCitizenshipIds[userAddress], tokenIds, tokenSupplies);
+// }
+//   function getCitizenshipInfoByAddress(address userAddress) external view returns (uint256, uint256) {
+//         uint256 certificateId = _userCitizenshipIds[userAddress];
+//         uint256 tokenId = _certificateToTokenId[certificateId];
+//         return (certificateId, tokenId);
+//     }
+  // Function to get citizenship info including the token ID and its supply
+    // function getCitizenshipInfoByAddress(address userAddress) external view returns (uint256, uint256, uint256[] memory) {
+    //     uint256 certificateId = _userCitizenshipIds[userAddress];
+    //     uint256 tokenId = _certificateToTokenId[certificateId];
+    //     uint256[] memory tokenIds;
+    //     uint256[] memory tokenSupplies;
+
+    //     // Fetch token IDs and corresponding supplies owned by the user from the MARS contract
+    //     (tokenIds, tokenSupplies) = marsContract.TotalFraction(userAddress);
+
+    //     return (certificateId, tokenId, tokenSupplies);
+    // }
+    function getCitizenshipInfoByAddress(address userAddress) external view returns (uint256, uint256, uint256) {
+    uint256 certificateId = _userCitizenshipIds[userAddress];
+    uint256 tokenId = _certificateToTokenId[certificateId];
+    uint256 plotId = _certificateToPlotId[certificateId];
+
+    // Fetch the supply of the plot associated with the tokenId from the MARS contract
+    uint256 plotSupply = marsContract.getPlotSupply(plotId);
+
+    return (certificateId, tokenId, plotSupply);
 }
+
 
 
 }
