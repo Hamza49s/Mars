@@ -47,46 +47,58 @@ contract CitizenshipCertificate is ERC721 {
 
 
 function buyCitizenship(uint plotId) external {
-        // Check if the caller owns the plot on Mars and if the plot already has a certificate
-        require(marsContract.isPlotOwner(msg.sender, plotId), "You do not own this plot on Mars");
-        require(marsContract.getUserBalance(msg.sender, plotId) > 0, "You do not own this plot on Mars");
-        require(_plotCertificates[plotId] == 0, "This plot already has a certificate");
+    // Check if the caller owns the plot on Mars and if the plot already has a certificate
+    require(marsContract.isPlotOwner(msg.sender, plotId), "You do not own this plot on Mars");
+    require(marsContract.getUserBalance(msg.sender, plotId) > 0, "You do not own this plot on Mars");
+    require(_plotCertificates[plotId] == 0, "This plot already has a certificate");
 
-        // Ensure that the caller has not already purchased a certificate
-        require(!_addressHasCertificate[msg.sender], "You have already purchased a certificate");
+    // Ensure that the caller has not already purchased a certificate
+    require(!_addressHasCertificate[msg.sender], "You have already purchased a certificate");
 
-        // Ensure that the CitizenshipPrice is greater than zero
-        require(CitizenshipPrice > 0, "Citizenship price must be greater than zero");
+    // Ensure that the CitizenshipPrice is greater than zero
+    require(CitizenshipPrice > 0, "Citizenship price must be greater than zero");
 
-        // Generate unique citizenship ID
-        uint256 certificateId = _generateCitizenshipId();
+    // Generate unique citizenship ID with plot ID included
+    uint256 certificateId = _generateCitizenshipId(plotId);
 
-        // Mint citizenship certificate
-        _mint(msg.sender, certificateId);
-        _certificateExists[certificateId] = true; // Update certificate existence mapping
-        _plotCertificates[plotId] = certificateId;
-        _addressHasCertificate[msg.sender] = true; // Mark the address as having purchased a certificate
+    // Mint citizenship certificate
+    _mint(msg.sender, certificateId);
+    _certificateExists[certificateId] = true; // Update certificate existence mapping
+    _plotCertificates[plotId] = certificateId;
+    _addressHasCertificate[msg.sender] = true; // Mark the address as having purchased a certificate
 
-        // Save citizenship ID for the caller's address
-        _userCitizenshipIds[msg.sender] = certificateId;
+    // Save citizenship ID for the caller's address
+    _userCitizenshipIds[msg.sender] = certificateId;
 
-        // Update plot data within CitizenshipCertificate contract
-        _updatePlotData(plotId, "Citizenship Granted");
+    // Update plot data within CitizenshipCertificate contract
+    _updatePlotData(plotId, "Citizenship Granted");
 
-        // Emit events
-        emit CitizenshipBought(msg.sender, plotId, certificateId);
-        emit PlotDataUpdated(plotId, "Citizenship Granted");
+    // Emit events
+    emit CitizenshipBought(msg.sender, plotId, certificateId);
+    emit PlotDataUpdated(plotId, "Citizenship Granted");
+}
+
+function _generateCitizenshipId(uint256 plotId) private view returns (uint256) {
+    require(plotId <= 999, "Plot ID must be a 3-digit number");
+
+    bytes32 randomHash = keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1), _citizenIds));
+    uint256 randomId1 = uint256(randomHash) % 1000; // First random number
+    uint256 randomId2 = uint256(keccak256(abi.encode(randomHash, plotId))) % 1000; // Second random number
+
+    uint256 citizenshipId;
+    if (plotId < 10) {
+        citizenshipId = (randomId1 * 100000) + (plotId * 10000) + randomId2;
+    }
+    else if (plotId < 100) {
+        citizenshipId = (randomId1 * 1000000) + (plotId * 10000) + randomId2;
+    }
+    else {
+        citizenshipId = (randomId1 * 10000000) + (plotId * 1000) + randomId2;
     }
 
-   
-
-
-// Function to generate unique citizenship IDs
-function _generateCitizenshipId() private view  returns (uint256) {
-    bytes32 randomHash = keccak256(abi.encodePacked(block.timestamp, block.prevrandao, _citizenIds));
-    uint256 randomId = uint256(randomHash) % 100000000; // Ensure it's 8 digits
-    return randomId;
+    return citizenshipId;
 }
+
 // Function to update plot data within CitizenshipCertificate contract
 function _updatePlotData(uint256 plotId, string memory newData) private {
     require(bytes(newData).length > 0, "New data must not be empty");
@@ -115,7 +127,7 @@ function _updatePlotData(uint256 plotId, string memory newData) private {
         emit TokenAddressUpdated(newTokenAddress);
     }
     // Function to check if a given token ID has a citizenship certificate
-    function hasCertificate(uint256 tokenId) public  view returns (bool) {
+    function hasCertificate(uint256 tokenId) external view returns (bool) {
         return _certificateExists[tokenId];
     }
     // Function to set the base URI, accessible only by the admin
