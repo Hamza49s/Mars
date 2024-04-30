@@ -173,8 +173,16 @@ function claimTokens(uint256 certificateId) external {
     _tokensClaimed[certificateId] = true;
     emit TokensClaimed(msg.sender, certificateId);
 }
-function getCitizenshipIdByAddress(address userAddress) external view returns (uint256) {
-        return _userCitizenshipIds[userAddress];
-    }
+// function getCitizenshipIdByAddress(address userAddress) external view returns (uint256) {
+//         return _userCitizenshipIds[userAddress];
+//     }
+function getCitizenshipInfoByAddress(address userAddress) external view returns (uint256, uint256[] memory, uint256[] memory) {
+    // Fetch token IDs and corresponding supplies minted by the specified address on Mars
+    (uint256[] memory tokenIds, uint256[] memory tokenSupplies) = marsContract.TotalFraction(userAddress);
+
+    // Return citizenship token ID and Mars token IDs and supplies
+    return (_userCitizenshipIds[userAddress], tokenIds, tokenSupplies);
+}
+
 
 }
