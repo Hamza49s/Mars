@@ -151,6 +151,10 @@ function TotalFraction(address account) public view returns (uint256[] memory, u
 
     return (tokenIds, tokenSupplies);
 }
+function getPlotSupply(uint256 plotId) external view returns (uint256) {
+    require(plotId >= 0 && plotId <= MAX_TOKEN_ID, "Invalid plot ID");
+    return _totalSupply[plotId];
+}
 
 
 
